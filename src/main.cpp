@@ -1,6 +1,3 @@
-#include <iostream>
-#include <GL/glew.h>
-#include "glfw3.h"
 #include "Angel.h"
 
 typedef vec4 color4;
@@ -218,7 +215,7 @@ void initModelViews() {
 
 void init() {
     // Load shaders and use the resulting shader program
-    GLuint program = InitShader("vshader.glsl", "fshader.glsl");
+    GLuint program = InitShader("src/vshader.glsl", "src/fshader.glsl");
     glUseProgram(program);
 
     colorcube();

@@ -16,3 +16,4 @@ void main()
     gl_Position = Projection * TurnView * ModelView * vPosition;
     color = colorCheck ? colorID : vColor;
 }
+

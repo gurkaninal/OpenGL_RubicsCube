@@ -1,6 +1,6 @@
 CC = g++
 CFLAGS = -std=c++11 -Wall
-LDFLAGS = -L/path/to/libraries -llibraryname
+LFLAGS = -lGL -lglfw -lGLEW
 
 SRCDIR = src
 INCDIR = include
@@ -16,7 +16,7 @@ EXECUTABLE = rubicsCube
 all: $(EXECUTABLE)
 
 $(EXECUTABLE): $(OBJECTS)
-	$(CC) $(CFLAGS) -I$(INCDIR) -o $@ $^ $(LDFLAGS)
+	$(CC) $(CFLAGS) -I$(INCDIR) -o $@ $^ $(LFLAGS)
 
 $(SRCDIR)/%.o: $(SRCDIR)/%.cpp $(HEADERS)
 	$(CC) $(CFLAGS) -I$(INCDIR) -c -o $@ $<

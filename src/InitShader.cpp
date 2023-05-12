@@ -1,65 +1,96 @@
-#include <GL/glew.h>
-#include <iostream>
-#include <fstream>
-#include <sstream>
 #include "Angel.h"
 
 namespace Angel {
 
-    static std::string ParseShader(const char* filepath) {
-        std::ifstream stream(filepath);
-        std::string line;
-        std::stringstream ss;
+// Create a NULL-terminated string by reading the provided file
+static char*
+readShaderSource(const char* shaderFile)
+{
+    FILE* fp = fopen(shaderFile, "r");
 
-        while (getline(stream, line)) {
-            ss << line << "\n";
-        }
+    if ( fp == NULL ) { return NULL; }
 
-        return ss.str();
-    }
+    fseek(fp, 0L, SEEK_END);
+    long size = ftell(fp);
 
-    static unsigned int CompileShader(unsigned int type, const std::string& source) {
-        unsigned int id = glCreateShader(type);
-        const char* src = source.c_str();
-        glShaderSource(id, 1, &src, nullptr);
-        glCompileShader(id);
+    fseek(fp, 0L, SEEK_SET);
+    char* buf = new char[size + 1];
+    fread(buf, 1, size, fp);
 
-        int result;
-        glGetShaderiv(id, GL_COMPILE_STATUS, &result);
-        if (result == GL_FALSE) {
-            int length;
-            glGetShaderiv(id, GL_INFO_LOG_LENGTH, &length);
-            char* message = (char*)_malloca(length * sizeof(char));
-            glGetShaderInfoLog(id, length, &length, message);
+    buf[size] = '\0';
+    fclose(fp);
 
-            std::cout << "Failed to compile "
-                << (type == GL_VERTEX_SHADER ? "vertex" : "fragment")
-                << " shader!" << std::endl;
-            std::cout << message << std::endl;
-
-            glDeleteShader(id);
-            return 0;
-        }
-
-        return id;
-    }
-
-    GLuint InitShader(const char* vertexShaderFile, const char* fragmentShaderFile) {
-        std::string vertexShader = ParseShader(vertexShaderFile);
-        std::string fragmentShader = ParseShader(fragmentShaderFile);
-
-        unsigned int program = glCreateProgram();
-        unsigned int vs = CompileShader(GL_VERTEX_SHADER, vertexShader);
-        unsigned int fs = CompileShader(GL_FRAGMENT_SHADER, fragmentShader);
-
-        glAttachShader(program, vs);
-        glAttachShader(program, fs);
-        glLinkProgram(program);
-        glValidateProgram(program);
-
-        glDeleteShader(vs);
-        glDeleteShader(fs);
-
-        return program;
-    }
+    return buf;
 }
+
+
+// Create a GLSL program object from vertex and fragment shader files
+GLuint
+InitShader(const char* vShaderFile, const char* fShaderFile)
+{
+    struct Shader {
+	const char*  filename;
+	GLenum       type;
+	GLchar*      source;
+    }  shaders[2] = {
+	{ vShaderFile, GL_VERTEX_SHADER, NULL },
+	{ fShaderFile, GL_FRAGMENT_SHADER, NULL }
+    };
+
+    GLuint program = glCreateProgram();
+    
+    for ( int i = 0; i < 2; ++i ) {
+	Shader& s = shaders[i];
+	s.source = readShaderSource( s.filename );
+	if ( shaders[i].source == NULL ) {
+	    std::cerr << "Failed to read " << s.filename << std::endl;
+	    exit( EXIT_FAILURE );
+	}
+
+	GLuint shader = glCreateShader( s.type );
+	glShaderSource( shader, 1, (const GLchar**) &s.source, NULL );
+	glCompileShader( shader );
+
+	GLint  compiled;
+	glGetShaderiv( shader, GL_COMPILE_STATUS, &compiled );
+	if ( !compiled ) {
+	    std::cerr << s.filename << " failed to compile:" << std::endl;
+	    GLint  logSize;
+	    glGetShaderiv( shader, GL_INFO_LOG_LENGTH, &logSize );
+	    char* logMsg = new char[logSize];
+	    glGetShaderInfoLog( shader, logSize, NULL, logMsg );
+	    std::cerr << logMsg << std::endl;
+	    delete [] logMsg;
+
+	    exit( EXIT_FAILURE );
+	}
+
+	delete [] s.source;
+
+	glAttachShader( program, shader );
+    }
+
+    /* link  and error check */
+    glLinkProgram(program);
+
+    GLint  linked;
+    glGetProgramiv( program, GL_LINK_STATUS, &linked );
+    if ( !linked ) {
+	std::cerr << "Shader program failed to link" << std::endl;
+	GLint  logSize;
+	glGetProgramiv( program, GL_INFO_LOG_LENGTH, &logSize);
+	char* logMsg = new char[logSize];
+	glGetProgramInfoLog( program, logSize, NULL, logMsg );
+	std::cerr << logMsg << std::endl;
+	delete [] logMsg;
+
+	exit( EXIT_FAILURE );
+    }
+
+    /* use program object */
+    glUseProgram(program);
+
+    return program;
+}
+
+}  // Close namespace Angel block
